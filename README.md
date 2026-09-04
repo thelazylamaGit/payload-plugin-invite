@@ -20,7 +20,7 @@ Tokens are never stored in plain text — only a SHA-256 hash is persisted. Each
 ```bash
 npm install payload-invite
 # or
-npm add payload-invite
+pnpm add payload-invite
 ```
 
 ---
@@ -91,10 +91,10 @@ The plugin ships with a default HTML email template. You can override the subjec
 
 ### Available placeholders
 
-| Placeholder | Replaced with |
-|-------------|---------------|
+| Placeholder | Replaced with                                                               |
+| ----------- | --------------------------------------------------------------------------- |
 | `{url}`     | The full invite URL, e.g. `https://example.com/admin/invite-accept?token=…` |
-| `{email}`   | The email address of the person being invited |
+| `{email}`   | The email address of the person being invited                               |
 
 ### Overriding just the subject
 
@@ -153,13 +153,13 @@ The admin will see these inputs in the **Invite User** drawer, below the email f
 
 ### Field options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `name` | `string` | — | **Required.** Must match the field name on the user collection. |
-| `label` | `string` | Field name | Label shown in the invite form. |
-| `type` | `'text' \| 'select'` | `'text'` | Input type rendered in the form. |
-| `options` | `string[]` | — | Required when `type` is `'select'`. |
-| `required` | `boolean` | `false` | Prevents the form from submitting if left empty. |
+| Option     | Type                 | Default    | Description                                                     |
+| ---------- | -------------------- | ---------- | --------------------------------------------------------------- |
+| `name`     | `string`             | —          | **Required.** Must match the field name on the user collection. |
+| `label`    | `string`             | Field name | Label shown in the invite form.                                 |
+| `type`     | `'text' \| 'select'` | `'text'`   | Input type rendered in the form.                                |
+| `options`  | `string[]`           | —          | Required when `type` is `'select'`.                             |
+| `required` | `boolean`            | `false`    | Prevents the form from submitting if left empty.                |
 
 ### Using field values in email templates
 
@@ -182,11 +182,11 @@ payloadInvite({
 
 The plugin registers three endpoints on the `plugin-invites` collection:
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/api/plugin-invites/create` | Required | Creates an invite and sends the email |
-| `GET` | `/api/plugin-invites/validate?token=…` | None | Validates a token and returns the associated email |
-| `POST` | `/api/plugin-invites/accept` | None | Creates the user account and marks the invite as used |
+| Method | Path                                   | Auth     | Description                                           |
+| ------ | -------------------------------------- | -------- | ----------------------------------------------------- |
+| `POST` | `/api/plugin-invites/create`           | Required | Creates an invite and sends the email                 |
+| `GET`  | `/api/plugin-invites/validate?token=…` | None     | Validates a token and returns the associated email    |
+| `POST` | `/api/plugin-invites/accept`           | None     | Creates the user account and marks the invite as used |
 
 ---
 

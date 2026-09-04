@@ -43,6 +43,7 @@ const buildConfigWithMemoryDB = async () => {
           {
             name: 'name',
             type: 'text',
+            label: 'Full Name',
           },
         ],
       },

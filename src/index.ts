@@ -78,9 +78,7 @@ export const payloadInvite =
           collection.admin.components.afterListTable = []
         }
 
-        ;(collection.admin.components.afterListTable as string[]).push(
-          `payload-invite/client#InviteUserButton`,
-        )
+        collection.admin.components.afterListTable.push(`payload-invite/client#InviteUserButton`)
       }
     }
 
