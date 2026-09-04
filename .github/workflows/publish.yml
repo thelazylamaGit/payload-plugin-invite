@@ -30,7 +30,7 @@ jobs:
           echo "Publishing version: $VERSION"
  
       - name: Set package version from tag
-        run: npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version
+        run: npm pkg set version=${{ steps.version.outputs.VERSION }}
  
       - name: Install dependencies
         run: npm ci
