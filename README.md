@@ -18,9 +18,9 @@ Tokens are never stored in plain text — only a SHA-256 hash is persisted. Each
 ## Installation
 
 ```bash
-npm install payload-invite
+npm install @ace-ams/payload-invite
 # or
-pnpm add payload-invite
+pnpm add @ace-ams/payload-invite
 ```
 
 ---
