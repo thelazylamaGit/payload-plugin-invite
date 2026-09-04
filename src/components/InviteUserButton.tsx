@@ -136,13 +136,24 @@ export const InviteUserButton: React.FC = () => {
     <>
       <Button onClick={handleOpen}>Invite User</Button>
 
-      <Drawer slug={DRAWER_SLUG}>
+      <style>{`
+        .${baseClass}-drawer .drawer__content {
+          max-width: 30rem;
+        }
+        .${baseClass}__actions {
+          display: flex;
+          gap: var(--base);
+          margin-top: var(--base);
+        }
+      `}</style>
+
+      <Drawer className={`${baseClass}-drawer`} slug={DRAWER_SLUG}>
         {successEmail ? (
           <div className={`${baseClass}__success`}>
             <Banner type="success">
               Invitation sent to <strong>{successEmail}</strong>
             </Banner>
-            <div className="form-submit">
+            <div className={`${baseClass}__actions`}>
               <Button onClick={handleInviteAnother}>Invite Another</Button>
               <Button buttonStyle="secondary" onClick={handleClose}>
                 Close
@@ -153,63 +164,66 @@ export const InviteUserButton: React.FC = () => {
           <form onSubmit={handleSubmit}>
             {error && <Banner type="error">{error}</Banner>}
 
-            {/* Email — always first */}
-            <TextInput
-              label="Email Address"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-              path="email"
-              readOnly={isSubmitting}
-              required
-              value={email}
-            />
+            <div className="render-fields">
+              {/* Email — always first */}
+              <TextInput
+                label="Email Address"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                path="email"
+                readOnly={isSubmitting}
+                required
+                value={email}
+              />
 
-            {/* Extra fields from plugin config */}
-            {inviteFields.map((field) => {
-              const label = field.label ?? field.name.charAt(0).toUpperCase() + field.name.slice(1)
-              const value = fieldValues[field.name] ?? ''
+              {/* Extra fields from plugin config */}
+              {inviteFields.map((field) => {
+                const label =
+                  field.label ?? field.name.charAt(0).toUpperCase() + field.name.slice(1)
+                const value = fieldValues[field.name] ?? ''
 
-              if (field.type === 'select' && field.options?.length) {
+                if (field.type === 'select' && field.options?.length) {
+                  return (
+                    <SelectInput
+                      key={field.name}
+                      label={label}
+                      name={field.name}
+                      onChange={(optionValue) => {
+                        const nextValue = Array.isArray(optionValue)
+                          ? optionValue[0]?.value
+                          : optionValue?.value
+                        if (typeof nextValue === 'string') {
+                          setFieldValue(field.name, nextValue)
+                        }
+                      }}
+                      options={field.options.map((opt) => ({ label: opt, value: opt }))}
+                      path={field.name}
+                      readOnly={isSubmitting}
+                      required={field.required}
+                      value={value}
+                    />
+                  )
+                }
+
                 return (
-                  <SelectInput
+                  <TextInput
                     key={field.name}
                     label={label}
-                    name={field.name}
-                    onChange={(optionValue) => {
-                      const nextValue = Array.isArray(optionValue)
-                        ? optionValue[0]?.value
-                        : optionValue?.value
-                      if (typeof nextValue === 'string') {
-                        setFieldValue(field.name, nextValue)
-                      }
-                    }}
-                    options={field.options.map((opt) => ({ label: opt, value: opt }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setFieldValue(field.name, e.target.value)
+                    }
                     path={field.name}
                     readOnly={isSubmitting}
                     required={field.required}
                     value={value}
                   />
                 )
-              }
+              })}
 
-              return (
-                <TextInput
-                  key={field.name}
-                  label={label}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setFieldValue(field.name, e.target.value)
-                  }
-                  path={field.name}
-                  readOnly={isSubmitting}
-                  required={field.required}
-                  value={value}
-                />
-              )
-            })}
+              {/* Collection selector — only shown when there are multiple targets */}
+              {collectionSelect}
+            </div>
 
-            {/* Collection selector — only shown when there are multiple targets */}
-            {collectionSelect}
-
-            <div className="form-submit">
+            <div className={`${baseClass}__actions`}>
               <Button disabled={isSubmitting} type="submit">
                 {isSubmitting ? 'Sending\u2026' : 'Send Invitation'}
               </Button>
