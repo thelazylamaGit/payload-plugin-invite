@@ -1,6 +1,6 @@
 {
   "name": "@ace-ams/payload-invite",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Invite users by email to your Payload CMS",
   "license": "MIT",
   "type": "module",
