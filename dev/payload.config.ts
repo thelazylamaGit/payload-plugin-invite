@@ -1,9 +1,9 @@
+import { payloadInvite } from '@ace-ams/payload-invite'
 import { mongooseAdapter } from '@payloadcms/db-mongodb'
 import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 import path from 'path'
 import { buildConfig } from 'payload'
-import { payloadInvite } from 'payload-invite'
 import sharp from 'sharp'
 import { fileURLToPath } from 'url'
 

@@ -31,7 +31,7 @@ Add the plugin to your `payload.config.ts`:
 
 ```ts
 import { buildConfig } from 'payload'
-import { payloadInvite } from 'payload-invite'
+import { payloadInvite } from '@ace-ams/payload-invite'
 
 export default buildConfig({
   plugins: [

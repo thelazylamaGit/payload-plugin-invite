@@ -16,29 +16,12 @@
   "compilerOptions": {
     "baseUrl": "./",
     "paths": {
-      "@payload-config": [
-        "./payload.config.ts"
-      ],
-      "payload-invite": [
-        "../src/index.ts"
-      ],
-      "payload-invite/client": [
-        "../src/exports/client.ts"
-      ],
-      "payload-invite/rsc": [
-        "../src/exports/rsc.ts"
-      ],
-      "@ace-ams/payload-invite": [
-        "../src/index.ts"
-      ],
-      "@ace-ams/payload-invite/client": [
-        "../src/exports/client.ts"
-      ],
-      "@ace-ams/payload-invite/rsc": [
-        "../src/exports/rsc.ts"
-      ]
+      "@payload-config": ["./payload.config.ts"],
+      "@ace-ams/payload-invite": ["../src/index.ts"],
+      "@ace-ams/payload-invite/client": ["../src/exports/client.ts"],
+      "@ace-ams/payload-invite/rsc": ["../src/exports/rsc.ts"]
     },
     "noEmit": true,
-    "emitDeclarationOnly": false,
+    "emitDeclarationOnly": false
   }
 }

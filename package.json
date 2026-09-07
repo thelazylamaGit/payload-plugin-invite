@@ -48,9 +48,10 @@
     "generate:types": "npm run dev:generate-types",
     "lint": "eslint",
     "lint:fix": "eslint ./src --fix",
-    "test": "npm test:int && npm test:e2e",
+    "prepublishOnly": "npm run test:int && npm run build",
+    "test": "npm run test:int && npm run test:e2e",
     "test:e2e": "playwright test",
-    "test:int": "vitest"
+    "test:int": "vitest run"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
