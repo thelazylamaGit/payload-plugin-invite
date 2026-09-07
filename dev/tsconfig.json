@@ -27,6 +27,15 @@
       ],
       "payload-invite/rsc": [
         "../src/exports/rsc.ts"
+      ],
+      "@ace-ams/payload-invite": [
+        "../src/index.ts"
+      ],
+      "@ace-ams/payload-invite/client": [
+        "../src/exports/client.ts"
+      ],
+      "@ace-ams/payload-invite/rsc": [
+        "../src/exports/rsc.ts"
       ]
     },
     "noEmit": true,

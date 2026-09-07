@@ -56,7 +56,7 @@ export const payloadInvite =
     }
 
     config.admin.components.views['invite-accept'] = {
-      Component: 'payload-invite/rsc#AcceptInviteView',
+      Component: '@ace-ams/payload-invite/rsc#AcceptInviteView',
       exact: true,
       path: '/invite-accept',
     }
@@ -78,7 +78,9 @@ export const payloadInvite =
           collection.admin.components.afterListTable = []
         }
 
-        collection.admin.components.afterListTable.push(`payload-invite/client#InviteUserButton`)
+        collection.admin.components.afterListTable.push(
+          `@ace-ams/payload-invite/client#InviteUserButton`,
+        )
       }
     }
 
