@@ -19,9 +19,11 @@ if (!process.env.ROOT_DIR) {
 
 const buildConfigWithMemoryDB = async () => {
   if (process.env.NODE_ENV === 'test') {
+    // A single-node replica set still supports transactions and avoids the
+    // "InterruptedDueToReplStateChange" errors caused by elections in multi-node sets.
     const memoryDB = await MongoMemoryReplSet.create({
       replSet: {
-        count: 3,
+        count: 1,
         dbName: 'payloadmemory',
       },
     })

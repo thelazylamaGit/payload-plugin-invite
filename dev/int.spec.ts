@@ -46,14 +46,17 @@ const runCreateInvite = async (
   return createInviteEndpoint(options)(payloadRequest)
 }
 
-const runValidateInvite = async (token?: string) => {
+const runValidateInvite = async (
+  token?: string,
+  options: PayloadInviteConfig = defaultPluginOptions,
+) => {
   const url = new URL('http://localhost:3000/api/plugin-invites/validate')
   if (token) {
     url.searchParams.set('token', token)
   }
   const request = new Request(url, { method: 'GET' })
   const payloadRequest = await createPayloadRequest({ config, request })
-  return validateInviteEndpoint(payloadRequest)
+  return validateInviteEndpoint(options)(payloadRequest)
 }
 
 const runAcceptInvite = async (
@@ -200,7 +203,7 @@ describe('createInvite endpoint', () => {
     const invite = (
       await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } })
     ).docs[0]
-    const expiresAt = new Date(invite.expiresAt as string).getTime()
+    const expiresAt = new Date(invite.expiresAt).getTime()
 
     expect(expiresAt).toBeGreaterThanOrEqual(before + 60_000)
     expect(expiresAt).toBeLessThan(before + 61_000)
