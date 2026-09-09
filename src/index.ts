@@ -11,6 +11,13 @@ export const payloadInvite =
   (config: Config): Config => {
     const userCollections: CollectionSlug[] = pluginOptions.userCollections ?? ['users']
 
+    if (pluginOptions.debug) {
+      // eslint-disable-next-line no-console
+      console.debug(
+        `[payload-invite] initializing plugin (userCollections: ${userCollections.join(', ')})`,
+      )
+    }
+
     if (!config.collections) {
       config.collections = []
     }
@@ -36,6 +43,10 @@ export const payloadInvite =
     config.collections.push(buildInvitesCollection(pluginOptions))
 
     if (pluginOptions.disabled) {
+      if (pluginOptions.debug) {
+        // eslint-disable-next-line no-console
+        console.debug('[payload-invite] plugin disabled, skipping admin UI setup')
+      }
       return config
     }
 
@@ -80,6 +91,16 @@ export const payloadInvite =
 
         collection.admin.components.afterListTable.push(
           `@ace-ams/payload-invite/client#InviteUserButton`,
+        )
+
+        if (pluginOptions.debug) {
+          // eslint-disable-next-line no-console
+          console.debug(`[payload-invite] added InviteUserButton to collection "${collectionSlug}"`)
+        }
+      } else if (pluginOptions.debug) {
+        // eslint-disable-next-line no-console
+        console.debug(
+          `[payload-invite] collection "${collectionSlug}" not found, skipping InviteUserButton`,
         )
       }
     }

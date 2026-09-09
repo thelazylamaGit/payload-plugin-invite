@@ -8,7 +8,7 @@ import { validateInviteEndpoint } from '../endpoints/validateInvite.js'
 
 export const buildInvitesCollection = (pluginOptions: PayloadInviteConfig): CollectionConfig => ({
   slug: 'plugin-invites',
-  // admin: { hidden: true },
+  admin: pluginOptions?.debug ? { hidden: false } : { hidden: true },
   endpoints: [
     {
       handler: createInviteEndpoint(pluginOptions),
@@ -16,7 +16,7 @@ export const buildInvitesCollection = (pluginOptions: PayloadInviteConfig): Coll
       path: '/create',
     },
     {
-      handler: validateInviteEndpoint,
+      handler: validateInviteEndpoint(pluginOptions),
       method: 'get',
       path: '/validate',
     },

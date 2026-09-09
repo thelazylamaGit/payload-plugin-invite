@@ -55,6 +55,15 @@ export type InviteEmailOptions = {
 }
 
 export type PayloadInviteConfig = {
+  /**
+   * Debug mode for the invite plugin. When enabled, additional logging may be output for troubleshooting purposes.
+   * @default false
+   */
+  debug?: boolean
+  /**
+   * Whether the invite plugin is disabled. When enabled, the plugin will not send invites or expose its endpoints.
+   * @default false
+   */
   disabled?: boolean
   /**
    * Customise the invite email. Any fields provided will overwrite the defaults.

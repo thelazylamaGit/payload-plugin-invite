@@ -16,6 +16,9 @@ export const createInviteEndpoint =
   async (req) => {
     // Require authenticated admin user
     if (!req.user) {
+      if (pluginOptions.debug) {
+        req.payload.logger.info('[payload-invite] create: rejected unauthenticated request')
+      }
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -50,6 +53,12 @@ export const createInviteEndpoint =
     const rawToken = crypto.randomBytes(32).toString('hex')
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
 
+    if (pluginOptions.debug) {
+      req.payload.logger.info(
+        `[payload-invite] create: inviting ${email} to collection "${collection}", expires at ${expiresAt.toISOString()}`,
+      )
+    }
+
     // Persist the invite (extra field values stored in `data` for use on account creation)
     await req.payload.create({
       collection: 'plugin-invites',
@@ -80,6 +89,10 @@ export const createInviteEndpoint =
     const html = renderTemplate(pluginOptions.email?.html ?? defaultEmailHtml, templateValues)
 
     const text = renderTemplate(pluginOptions.email?.text ?? defaultEmailText, templateValues)
+
+    if (pluginOptions.debug) {
+      req.payload.logger.info(`[payload-invite] create: sending invite email to ${email}`)
+    }
 
     await req.payload.sendEmail({ html, subject, text, to: email })
 

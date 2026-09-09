@@ -40,6 +40,9 @@ export const acceptInviteEndpoint =
     const invite = result.docs[0]
 
     if (!invite) {
+      if (pluginOptions.debug) {
+        req.payload.logger.info(`[payload-invite] accept: no invite found for token hash`)
+      }
       return Response.json({ error: 'Invalid or expired invitation' }, { status: 404 })
     }
 
@@ -51,6 +54,10 @@ export const acceptInviteEndpoint =
     const expiresAt = new Date(invite.expiresAt as string)
 
     if (now > expiresAt) {
+      if (pluginOptions.debug) {
+        req.payload.logger.info(`[payload-invite] accept: invite ${invite.id} has expired`)
+      }
+
       if (invite.status !== 'expired') {
         await req.payload.update({
           id: invite.id,
@@ -72,6 +79,12 @@ export const acceptInviteEndpoint =
     // Merge any extra fields stored on the invite into the user document
     const extraData = (invite.data as null | Record<string, unknown>) ?? {}
 
+    if (pluginOptions.debug) {
+      req.payload.logger.info(
+        `[payload-invite] accept: creating user ${invite.email} in collection "${collectionSlug}"`,
+      )
+    }
+
     // Create the user account
     try {
       await req.payload.create({
@@ -84,6 +97,11 @@ export const acceptInviteEndpoint =
       })
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create user'
+      if (pluginOptions.debug) {
+        req.payload.logger.info(
+          `[payload-invite] accept: failed to create user ${invite.email}: ${message}`,
+        )
+      }
       return Response.json({ error: message }, { status: 422 })
     }
 
@@ -96,6 +114,10 @@ export const acceptInviteEndpoint =
         usedAt: now.toISOString(),
       },
     })
+
+    if (pluginOptions.debug) {
+      req.payload.logger.info(`[payload-invite] accept: invite ${invite.id} accepted`)
+    }
 
     return Response.json({ success: true })
   }

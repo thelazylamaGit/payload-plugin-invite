@@ -97,13 +97,6 @@
   "publishConfig": {
     "access": "public"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp",
-      "esbuild",
-      "unrs-resolver"
-    ]
-  },
   "registry": "https://registry.npmjs.org/",
   "dependencies": {}
 }
