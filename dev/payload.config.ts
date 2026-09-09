@@ -70,6 +70,7 @@ const buildConfigWithMemoryDB = async () => {
     },
     plugins: [
       payloadInvite({
+        debug: true,
         fields: [
           {
             name: 'name',
