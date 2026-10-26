@@ -89,9 +89,13 @@ export const payloadInvite =
           collection.admin.components.afterListTable = []
         }
 
-        collection.admin.components.afterListTable.push(
-          `@ace-ams/payload-invite/client#InviteUserButton`,
-        )
+        collection.admin.components.afterListTable.push({
+          path: '@ace-ams/payload-invite/rsc#InviteUserButtonServer',
+          // Payload keeps component serverProps out of the client config.
+          serverProps: {
+            options: { access: pluginOptions.access, disabled: pluginOptions.disabled },
+          },
+        })
 
         if (pluginOptions.debug) {
           // eslint-disable-next-line no-console

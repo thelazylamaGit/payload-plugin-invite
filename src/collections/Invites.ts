@@ -8,6 +8,14 @@ import { validateInviteEndpoint } from '../endpoints/validateInvite.js'
 
 export const buildInvitesCollection = (pluginOptions: PayloadInviteConfig): CollectionConfig => ({
   slug: 'plugin-invites',
+  // Invite records contain bearer-token hashes and trusted recipient data.
+  // All external access must go through the purpose-specific endpoints.
+  access: {
+    create: () => false,
+    delete: () => false,
+    read: () => false,
+    update: () => false,
+  },
   admin: pluginOptions?.debug ? { hidden: false } : { hidden: true },
   endpoints: [
     {

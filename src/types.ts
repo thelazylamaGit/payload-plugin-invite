@@ -1,4 +1,4 @@
-import type { CollectionSlug } from 'payload'
+import type { Access, CollectionSlug } from 'payload'
 
 type InviteFieldBase = {
   /**
@@ -56,6 +56,13 @@ export type InviteEmailOptions = {
 }
 
 export type PayloadInviteConfig = {
+  /**
+   * Permission to send invitations. Only literal true grants access; defaults to deny.
+   * Use a user-based policy: the admin visibility check runs without proposed data.
+   */
+  access?: {
+    create?: Access
+  }
   /**
    * Debug mode for the invite plugin. When enabled, additional logging may be output for troubleshooting purposes.
    * @default false

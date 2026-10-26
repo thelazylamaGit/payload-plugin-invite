@@ -7,6 +7,7 @@ import { buildConfig } from 'payload'
 import sharp from 'sharp'
 import { fileURLToPath } from 'url'
 
+import { isAdmin } from './helpers/isAdmin.js'
 import { testEmailAdapter } from './helpers/testEmailAdapter.js'
 import { seed } from './seed.js'
 
@@ -42,6 +43,7 @@ const buildConfigWithMemoryDB = async () => {
         slug: 'users',
         auth: true,
         fields: [
+          { name: 'role', type: 'select', defaultValue: 'editor', options: ['admin', 'editor'] },
           {
             name: 'name',
             type: 'text',
@@ -97,6 +99,7 @@ const buildConfigWithMemoryDB = async () => {
     },
     plugins: [
       payloadInvite({
+        access: { create: isAdmin },
         debug: true,
         fields: [
           {

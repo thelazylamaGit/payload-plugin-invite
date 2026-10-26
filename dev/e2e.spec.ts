@@ -71,3 +71,61 @@ test('native invite relationships show titles, search, clear, and submit typed I
   await drawer.locator('#field-practitioner').getByRole('combobox').click()
   await expect(drawer.locator('.relationship__error-loading')).toBeVisible()
 })
+
+test('server rendering omits the invite button for editors and the endpoint independently denies them', async ({
+  page,
+}) => {
+  const login = await page.request.post('/api/users/login', {
+    data: { email: devUser.email, password: devUser.password },
+  })
+  const adminLogin: { token: string } = await login.json()
+  const adminHeaders = { Authorization: `JWT ${adminLogin.token}` }
+  const editorEmail = `editor-${Date.now()}@example.com`
+  const created = await page.request.post('/api/users', {
+    data: { email: editorEmail, password: 'editor-test', role: 'editor' },
+    headers: adminHeaders,
+  })
+  expect(created.status()).toBe(201)
+
+  // Direct REST collection access is closed even for an authorized inviter.
+  const forged = await page.request.post('/api/plugin-invites', {
+    data: {
+      collection: 'users',
+      data: { role: 'admin' },
+      email: `forged-${Date.now()}@example.com`,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      tokenHash: 'forged-token-hash',
+    },
+    headers: adminHeaders,
+  })
+  expect(forged.status()).toBe(403)
+  expect((await page.request.get('/api/plugin-invites', { headers: adminHeaders })).status()).toBe(
+    403,
+  )
+
+  const editorResponse = await page.request.post('/api/users/login', {
+    data: { email: editorEmail, password: 'editor-test' },
+  })
+  const editorLogin: { token: string } = await editorResponse.json()
+  const permissionRequests: string[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('/plugin-invites/permissions')) {
+      permissionRequests.push(request.url())
+    }
+  })
+  const response = await page.goto('/admin/collections/users')
+  const button = page.getByRole('button', { name: 'Invite User', exact: true })
+  await expect(button).toBeHidden()
+  expect(await response?.text()).not.toContain('Invite User')
+  expect(permissionRequests).toHaveLength(0)
+  const creation = await page.request.post('/api/plugin-invites/create', {
+    data: {
+      collection: 'users',
+      data: { role: 'admin' },
+      email: `blocked-${Date.now()}@example.com`,
+    },
+    headers: { Authorization: `JWT ${editorLogin.token}` },
+  })
+  expect(creation.status()).toBe(403)
+  expect(await creation.json()).toEqual({ error: 'Forbidden' })
+})

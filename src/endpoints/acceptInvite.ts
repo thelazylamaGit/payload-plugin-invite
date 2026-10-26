@@ -30,7 +30,11 @@ export const acceptInviteEndpoint =
 
     const result = await req.payload.find({
       collection: 'plugin-invites',
+      depth: 0,
       limit: 1,
+      // A valid bearer token authorizes only this invitation's lifecycle operations.
+      overrideAccess: true,
+      req,
       where: {
         tokenHash: {
           equals: tokenHash,
@@ -64,6 +68,8 @@ export const acceptInviteEndpoint =
           id: invite.id,
           collection: 'plugin-invites',
           data: { status: 'expired' },
+          overrideAccess: true,
+          req,
         })
       }
 
@@ -138,6 +144,9 @@ export const acceptInviteEndpoint =
           email: invite.email as string,
           password,
         },
+        // The token authorizes creation using the invite's stored collection and data.
+        overrideAccess: true,
+        req,
       })
     } catch (err: unknown) {
       const message =
@@ -162,6 +171,8 @@ export const acceptInviteEndpoint =
         status: 'accepted',
         usedAt: now.toISOString(),
       },
+      overrideAccess: true,
+      req,
     })
 
     if (pluginOptions.debug) {

@@ -131,6 +131,7 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: string;
+  role?: ('admin' | 'editor') | null;
   name?: string | null;
   practitioner?: (string | null) | Practitioner;
   numericPractitioner?: (number | null) | NumericPractitioner;
@@ -324,6 +325,7 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  role?: T;
   name?: T;
   practitioner?: T;
   numericPractitioner?: T;

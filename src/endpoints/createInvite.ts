@@ -4,6 +4,7 @@ import crypto from 'node:crypto'
 
 import type { InviteData, PayloadInviteConfig } from '../types.js'
 
+import { canCreateInvite } from '../access/canCreateInvite.js'
 import {
   defaultEmailHtml,
   defaultEmailSubject,
@@ -17,7 +18,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const createInviteEndpoint =
   (pluginOptions: PayloadInviteConfig): PayloadHandler =>
   async (req) => {
-    // Require authenticated admin user
+    // Authentication is required independently of the application's access policy.
     if (!req.user) {
       if (pluginOptions.debug) {
         req.payload.logger.info('[payload-invite] create: rejected unauthenticated request')
@@ -38,6 +39,10 @@ export const createInviteEndpoint =
     }
 
     const { collection, data = {}, email } = body
+
+    if (!(await canCreateInvite(pluginOptions, req, { collection, data, email }))) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     if (!email || typeof email !== 'string') {
       return Response.json({ error: 'email is required' }, { status: 400 })
@@ -143,6 +148,9 @@ export const createInviteEndpoint =
         status: 'pending',
         tokenHash,
       },
+      // Only this endpoint may persist an invite after the action-level check above.
+      overrideAccess: true,
+      req,
     })
 
     // Build the full invite URL — serverURL is always absolute (e.g. https://example.com)

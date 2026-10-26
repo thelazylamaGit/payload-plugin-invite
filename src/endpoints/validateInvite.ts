@@ -18,7 +18,11 @@ export const validateInviteEndpoint =
 
     const result = await req.payload.find({
       collection: 'plugin-invites',
+      depth: 0,
       limit: 1,
+      // Public callers can look up only the invitation matching their bearer token.
+      overrideAccess: true,
+      req,
       where: {
         tokenHash: {
           equals: tokenHash,
@@ -59,6 +63,8 @@ export const validateInviteEndpoint =
           id: invite.id,
           collection: 'plugin-invites',
           data: { status: 'expired' },
+          overrideAccess: true,
+          req,
         })
       }
 

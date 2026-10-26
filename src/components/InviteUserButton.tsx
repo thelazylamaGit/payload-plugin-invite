@@ -25,6 +25,7 @@ type AuthCollection = {
 export const InviteUserButton: React.FC = () => {
   const { config } = useConfig()
   const { closeModal, openModal } = useModal()
+  const inviteAPI = `${config.serverURL || ''}${config.routes.api}/plugin-invites`
 
   const authCollections: AuthCollection[] = (config.collections ?? []).filter(
     (c) => Boolean(c.auth) && c.slug !== 'plugin-invites',
@@ -99,12 +100,13 @@ export const InviteUserButton: React.FC = () => {
       setError(null)
 
       try {
-        const res = await fetch('/api/plugin-invites/create', {
+        const res = await fetch(`${inviteAPI}/create`, {
           body: JSON.stringify({
             collection: selectedCollection,
             data: fieldValues,
             email,
           }),
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           method: 'POST',
         })
@@ -124,7 +126,7 @@ export const InviteUserButton: React.FC = () => {
         setIsSubmitting(false)
       }
     },
-    [email, fieldValues, inviteFields, selectedCollection],
+    [email, fieldValues, inviteAPI, inviteFields, selectedCollection],
   )
 
   const handleInviteAnother = useCallback(() => {

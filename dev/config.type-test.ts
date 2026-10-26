@@ -1,4 +1,9 @@
+import type { Access } from 'payload'
+
 import { payloadInvite } from '../src/index.js'
+
+const applicationAccess: Access = ({ req }) => Boolean(req.user)
+payloadInvite({ access: { create: applicationAccess } })
 
 const roles = ['admin', 'editor', 'practitioner'] as const
 const mutableRoles = ['admin', 'editor']

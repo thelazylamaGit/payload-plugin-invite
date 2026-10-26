@@ -1,23 +1,29 @@
-import type { Payload } from 'payload'
+import type { Access, Payload } from 'payload'
 
 import config from '@payload-config'
 import crypto from 'node:crypto'
 import { createPayloadRequest, getPayload } from 'payload'
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import type { PayloadInviteConfig } from '../src/types.js'
 
+import { InviteUserButtonServer } from '../src/components/InviteUserButtonServer.js'
 import { acceptInviteEndpoint } from '../src/endpoints/acceptInvite.js'
 import { createInviteEndpoint } from '../src/endpoints/createInvite.js'
 import { validateInviteEndpoint } from '../src/endpoints/validateInvite.js'
 import { devUser } from './helpers/credentials.js'
+import { isAdmin } from './helpers/isAdmin.js'
 import { clearSentEmails, sentEmails } from './helpers/testEmailAdapter.js'
+
+vi.mock('../src/components/InviteUserButton.js', () => ({ InviteUserButton: () => null }))
 
 let payload: Payload
 let adminToken: string
+let editorToken: string
 
 // Matches the options registered in dev/payload.config.ts
 const defaultPluginOptions: PayloadInviteConfig = {
+  access: { create: isAdmin },
   fields: [{ name: 'name', label: 'Full Name', required: true }],
   userCollections: ['users'],
 }
@@ -68,6 +74,17 @@ const runAcceptInvite = async (
   return acceptInviteEndpoint(options)(payloadRequest)
 }
 
+const renderInviteButton = async (
+  token?: string,
+  options: PayloadInviteConfig = defaultPluginOptions,
+) => {
+  const request = new Request('http://localhost:3000/admin/collections/users', {
+    headers: token ? { Authorization: `JWT ${token}` } : {},
+  })
+  const req = await createPayloadRequest({ config, request })
+  return InviteUserButtonServer({ options, payload, user: req.user ?? undefined })
+}
+
 // The raw token is only ever transmitted via the invite email, never returned by the API.
 const extractTokenFromEmail = (): string => {
   const email = sentEmails.at(-1)
@@ -88,6 +105,17 @@ beforeAll(async () => {
     data: { email: devUser.email, password: devUser.password },
   })
   adminToken = loginResult.token ?? ''
+
+  const editorEmail = uniqueEmail()
+  await payload.create({
+    collection: 'users',
+    data: { email: editorEmail, password: 'editor-test', role: 'editor' },
+  })
+  const editorLogin = await payload.login({
+    collection: 'users',
+    data: { email: editorEmail, password: 'editor-test' },
+  })
+  editorToken = editorLogin.token ?? ''
 })
 
 afterAll(async () => {
@@ -96,6 +124,206 @@ afterAll(async () => {
 
 beforeEach(() => {
   clearSentEmails()
+})
+
+describe('invitation permission', () => {
+  const deniedPolicies: { label: string; options: PayloadInviteConfig }[] = [
+    { label: 'missing access', options: {} },
+    { label: 'missing create', options: { access: {} } },
+    { label: 'false', options: { access: { create: () => false } } },
+    {
+      label: 'query constraint',
+      options: { access: { create: () => ({ role: { equals: 'admin' } }) } },
+    },
+    {
+      label: 'synchronous failure',
+      options: {
+        access: {
+          create: () => {
+            throw new Error('policy failed')
+          },
+        },
+      },
+    },
+    {
+      label: 'asynchronous failure',
+      options: { access: { create: () => Promise.reject(new Error('policy failed')) } },
+    },
+  ]
+
+  test.each(deniedPolicies)(
+    '$label denies creation and the UI permission check without side effects',
+    async ({ options }) => {
+      const email = uniqueEmail()
+      const response = await runCreateInvite(
+        { collection: 'users', data: { role: 'admin' }, email },
+        adminToken,
+        options,
+      )
+      expect(response.status).toBe(403)
+      expect(await response.json()).toEqual({ error: 'Forbidden' })
+      expect(sentEmails).toHaveLength(0)
+      expect(
+        (await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } }))
+          .docs,
+      ).toHaveLength(0)
+
+      expect(await renderInviteButton(adminToken, options)).toBeNull()
+    },
+  )
+
+  test('requires authentication even if the application policy allows everyone', async () => {
+    const options: PayloadInviteConfig = { access: { create: () => true } }
+    const email = uniqueEmail()
+    expect((await runCreateInvite({ collection: 'users', email }, undefined, options)).status).toBe(
+      401,
+    )
+    expect(await renderInviteButton(undefined, options)).toBeNull()
+    expect(sentEmails).toHaveLength(0)
+    expect(
+      (await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } }))
+        .docs,
+    ).toHaveLength(0)
+  })
+
+  test('the application admin policy denies authenticated editors', async () => {
+    const email = uniqueEmail()
+    const response = await runCreateInvite({ collection: 'users', email }, editorToken)
+    expect(response.status).toBe(403)
+    expect(sentEmails).toHaveLength(0)
+    expect(
+      (await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } }))
+        .docs,
+    ).toHaveLength(0)
+    expect(await renderInviteButton(editorToken)).toBeNull()
+    expect(await renderInviteButton(adminToken)).not.toBeNull()
+  })
+
+  test('the server wrapper awaits a user-based policy without proposed invitation data', async () => {
+    let calls = 0
+    expect(
+      await renderInviteButton(adminToken, {
+        access: {
+          create: ({ data, req }) => {
+            calls++
+            expect(data).toBeUndefined()
+            expect(req.payload).toBe(payload)
+            expect(req.user?.email).toBe(devUser.email)
+            return Promise.resolve(true)
+          },
+        },
+      }),
+    ).not.toBeNull()
+    expect(calls).toBe(1)
+  })
+
+  test.each([false, true])(
+    'supports async=%s and provides the actual request and invitation data',
+    async (asyncPolicy) => {
+      const email = uniqueEmail()
+      const body = { collection: 'users', data: { role: 'editor' }, email }
+      const request = await createPayloadRequest({
+        config,
+        request: jsonRequest('http://localhost:3000/api/plugin-invites/create', body, adminToken),
+      })
+      let calls = 0
+      const create: Access = ({ data, req }) => {
+        calls++
+        expect(req).toBe(request)
+        expect(req.user?.collection).toBe('users')
+        expect(req.user?.email).toBe(devUser.email)
+        expect(data).toEqual(body)
+        return asyncPolicy ? Promise.resolve(true) : true
+      }
+      const response = await createInviteEndpoint({ access: { create } })(request)
+      expect(response.status).toBe(200)
+      expect(calls).toBe(1)
+      expect(sentEmails).toHaveLength(1)
+      const invite = (
+        await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } })
+      ).docs[0]
+      expect(invite.data).toEqual({ role: 'editor' })
+    },
+  )
+
+  test('direct collection access cannot read, forge, alter, or delete invites even as an admin', async () => {
+    const email = uniqueEmail()
+    expect(
+      (await runCreateInvite({ collection: 'users', data: { role: 'editor' }, email }, adminToken))
+        .status,
+    ).toBe(200)
+    const invite = (
+      await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } })
+    ).docs[0]
+    const req = await createPayloadRequest({
+      config,
+      request: jsonRequest('http://localhost:3000/api/plugin-invites', {}, adminToken),
+    })
+    const options = { collection: 'plugin-invites' as const, overrideAccess: false, req }
+    const forgedEmail = uniqueEmail()
+    await expect(
+      payload.create({
+        ...options,
+        data: {
+          collection: 'users',
+          data: { role: 'admin' },
+          email: forgedEmail,
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          tokenHash: hashToken('forged'),
+        },
+      }),
+    ).rejects.toMatchObject({ status: 403 })
+    await expect(
+      payload.update({ ...options, id: invite.id, data: { data: { role: 'admin' } } }),
+    ).rejects.toMatchObject({ status: 403 })
+    await expect(payload.delete({ ...options, id: invite.id })).rejects.toMatchObject({
+      status: 403,
+    })
+    await expect(payload.findByID({ ...options, id: invite.id })).rejects.toMatchObject({
+      status: 403,
+    })
+    const stored = await payload.findByID({ id: invite.id, collection: 'plugin-invites' })
+    expect(stored.data).toEqual({ role: 'editor' })
+    expect(
+      (
+        await payload.find({
+          collection: 'plugin-invites',
+          where: { email: { equals: forgedEmail } },
+        })
+      ).docs,
+    ).toHaveLength(0)
+    expect(sentEmails).toHaveLength(1)
+  })
+
+  test('public acceptance uses stored recipient data and ignores attempted overrides', async () => {
+    const email = uniqueEmail()
+    expect(
+      (await runCreateInvite({ collection: 'users', data: { role: 'editor' }, email }, adminToken))
+        .status,
+    ).toBe(200)
+    const token = extractTokenFromEmail()
+    expect((await runValidateInvite(token)).status).toBe(200)
+    const response = await runAcceptInvite(
+      {
+        collection: 'posts',
+        data: { email: 'attacker@example.com', role: 'admin' },
+        email: 'attacker@example.com',
+        password: 'super-secret-1',
+        role: 'admin',
+        token,
+      },
+      { access: { create: () => false } },
+    )
+    expect(response.status).toBe(200)
+    const user = (await payload.find({ collection: 'users', where: { email: { equals: email } } }))
+      .docs[0]
+    expect(user.email).toBe(email)
+    expect(user.role).toBe('editor')
+    const invite = (
+      await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } })
+    ).docs[0]
+    expect(invite.status).toBe('accepted')
+  })
 })
 
 describe('CRIT: invite lifecycle', () => {
@@ -185,7 +413,7 @@ describe('createInvite endpoint', () => {
     const response = await runCreateInvite(
       { collection: 'posts', email: uniqueEmail() },
       adminToken,
-      { userCollections: ['users'] },
+      { access: { create: isAdmin }, userCollections: ['users'] },
     )
     expect(response.status).toBe(400)
     expect(sentEmails).toHaveLength(0)
@@ -196,6 +424,7 @@ describe('createInvite endpoint', () => {
     const before = Date.now()
 
     await runCreateInvite({ collection: 'users', email }, adminToken, {
+      access: { create: isAdmin },
       inviteExpiryMs: 60_000,
       userCollections: ['users'],
     })
@@ -213,6 +442,7 @@ describe('createInvite endpoint', () => {
     const email = uniqueEmail()
 
     await runCreateInvite({ collection: 'users', data: { name: 'Ada' }, email }, adminToken, {
+      access: { create: isAdmin },
       email: {
         html: '<p>Hi {name} ({email}), go to {url}</p>',
         subject: 'Welcome {name}!',
@@ -363,6 +593,7 @@ describe('acceptInvite endpoint', () => {
 
 describe('relationship invite fields', () => {
   const relationshipOptions: PayloadInviteConfig = {
+    access: { create: isAdmin },
     email: { subject: 'Practitioners: {practitioner}, {numericPractitioner}' },
     fields: [
       { name: 'practitioner', type: 'relationship', relationTo: 'practitioners' },
@@ -475,6 +706,7 @@ describe('relationship invite fields', () => {
       { collection: 'users', data: { practitioner: '' }, email: uniqueEmail() },
       adminToken,
       {
+        access: { create: isAdmin },
         fields: [
           {
             name: 'practitioner',

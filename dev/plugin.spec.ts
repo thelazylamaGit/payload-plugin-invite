@@ -18,11 +18,11 @@ describe('payloadInvite plugin options', () => {
     const users = config.collections?.find((c) => c.slug === 'users')
     const posts = config.collections?.find((c) => c.slug === 'posts')
 
-    expect(users?.admin?.components?.afterListTable).toContain(
-      '@ace-ams/payload-invite/client#InviteUserButton',
+    expect(users?.admin?.components?.afterListTable).toContainEqual(
+      expect.objectContaining({ path: '@ace-ams/payload-invite/rsc#InviteUserButtonServer' }),
     )
-    expect(posts?.admin?.components?.afterListTable ?? []).not.toContain(
-      '@ace-ams/payload-invite/client#InviteUserButton',
+    expect(posts?.admin?.components?.afterListTable ?? []).not.toContainEqual(
+      expect.objectContaining({ path: '@ace-ams/payload-invite/rsc#InviteUserButtonServer' }),
     )
   })
 
@@ -32,11 +32,11 @@ describe('payloadInvite plugin options', () => {
     const users = config.collections?.find((c) => c.slug === 'users')
     const posts = config.collections?.find((c) => c.slug === 'posts')
 
-    expect(users?.admin?.components?.afterListTable ?? []).not.toContain(
-      '@ace-ams/payload-invite/client#InviteUserButton',
+    expect(users?.admin?.components?.afterListTable ?? []).not.toContainEqual(
+      expect.objectContaining({ path: '@ace-ams/payload-invite/rsc#InviteUserButtonServer' }),
     )
-    expect(posts?.admin?.components?.afterListTable).toContain(
-      '@ace-ams/payload-invite/client#InviteUserButton',
+    expect(posts?.admin?.components?.afterListTable).toContainEqual(
+      expect.objectContaining({ path: '@ace-ams/payload-invite/rsc#InviteUserButtonServer' }),
     )
   })
 
@@ -58,6 +58,19 @@ describe('payloadInvite plugin options', () => {
     const config = payloadInvite()(makeConfig())
 
     expect(config.admin?.custom?.['payload-invite']).toEqual({ fields: [] })
+  })
+
+  test('keeps the access policy out of client configuration', () => {
+    const create = () => true
+    const config = payloadInvite({ access: { create } })(makeConfig())
+    expect(config.admin?.custom?.['payload-invite']).toEqual({ fields: [] })
+    expect(
+      config.collections?.find((collection) => collection.slug === 'users')?.admin?.components
+        ?.afterListTable,
+    ).toContainEqual({
+      path: '@ace-ams/payload-invite/rsc#InviteUserButtonServer',
+      serverProps: { options: { access: { create }, disabled: undefined } },
+    })
   })
 
   test('always registers the plugin-invites collection to keep the DB schema consistent', () => {
@@ -83,8 +96,8 @@ describe('payloadInvite plugin options', () => {
 
     expect(config.admin?.components?.views?.['invite-accept']).toBeUndefined()
     const users = config.collections?.find((c) => c.slug === 'users')
-    expect(users?.admin?.components?.afterListTable ?? []).not.toContain(
-      '@ace-ams/payload-invite/client#InviteUserButton',
+    expect(users?.admin?.components?.afterListTable ?? []).not.toContainEqual(
+      expect.objectContaining({ path: '@ace-ams/payload-invite/rsc#InviteUserButtonServer' }),
     )
   })
 })
