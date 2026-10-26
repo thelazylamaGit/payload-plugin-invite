@@ -191,7 +191,24 @@ payloadInvite({
 
 The admin will see these inputs in the **Invite User** drawer, below the email field. On account creation the values are spread onto the user document, so `name: 'Jane'` will set the `name` field on the `users` collection document.
 
-### Readonly select options
+### Select option labels and readonly arrays
+
+Select options use Payload's native `Option` type: strings, `{ label, value }` objects, or a mixture of both. Object options display their label while submitting and storing their internal string value:
+
+```ts
+type Role = 'admin' | 'editor' | 'practitioner'
+
+const roleOptions: { label: string; value: Role }[] = [
+  { label: 'Admin', value: 'admin' },
+  { label: 'Editor', value: 'editor' },
+  { label: 'Practitioner', value: 'practitioner' },
+]
+
+payloadInvite({
+  access: { create: isAdmin },
+  fields: [{ name: 'role', type: 'select', options: roleOptions }],
+})
+```
 
 Select options accept both mutable arrays and readonly tuples, including arrays declared with `as const`:
 
@@ -243,14 +260,14 @@ Only single-collection, single-document relationships are supported. Polymorphic
 
 ### Field options
 
-| Option       | Type                                   | Default    | Description                                                     |
-| ------------ | -------------------------------------- | ---------- | --------------------------------------------------------------- |
-| `name`       | `string`                               | —          | **Required.** Must match the field name on the user collection. |
-| `label`      | `string`                               | Field name | Label shown in the invite form.                                 |
-| `type`       | `'text' \| 'select' \| 'relationship'` | `'text'`   | Input type rendered in the form.                                |
-| `options`    | `readonly string[]`                    | —          | Options for `type: 'select'`; mutable arrays are also accepted. |
-| `relationTo` | `CollectionSlug`                       | —          | **Required** for `type: 'relationship'`. One collection slug.   |
-| `required`   | `boolean`                              | `false`    | Prevents the form from submitting if left empty.                |
+| Option       | Type                                   | Default    | Description                                                                                       |
+| ------------ | -------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------- |
+| `name`       | `string`                               | —          | **Required.** Must match the field name on the user collection.                                   |
+| `label`      | `string`                               | Field name | Label shown in the invite form.                                                                   |
+| `type`       | `'text' \| 'select' \| 'relationship'` | `'text'`   | Input type rendered in the form.                                                                  |
+| `options`    | `readonly Option[]`                    | —          | Payload select options: strings or label/value objects. Mutable and readonly arrays are accepted. |
+| `relationTo` | `CollectionSlug`                       | —          | **Required** for `type: 'relationship'`. One collection slug.                                     |
+| `required`   | `boolean`                              | `false`    | Prevents the form from submitting if left empty.                                                  |
 
 ### Using field values in email templates
 

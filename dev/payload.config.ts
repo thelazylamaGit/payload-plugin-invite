@@ -107,6 +107,11 @@ const buildConfigWithMemoryDB = async () => {
             label: 'Full Name',
             required: true,
           },
+          {
+            name: 'role',
+            type: 'select',
+            options: [{ label: 'Administrator', value: 'admin' }, 'editor'],
+          },
           { name: 'practitioner', type: 'relationship', relationTo: 'practitioners' },
           {
             name: 'numericPractitioner',

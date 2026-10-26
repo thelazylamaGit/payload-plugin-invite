@@ -255,7 +255,9 @@ export const InviteUserButton: React.FC = () => {
                           setFieldValue(field.name, nextValue)
                         }
                       }}
-                      options={field.options.map((opt) => ({ label: opt, value: opt }))}
+                      options={field.options.map((opt) =>
+                        typeof opt === 'string' ? { label: opt, value: opt } : opt,
+                      )}
                       path={field.name}
                       readOnly={isSubmitting}
                       required={field.required}

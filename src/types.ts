@@ -1,4 +1,4 @@
-import type { Access, CollectionSlug } from 'payload'
+import type { Access, CollectionSlug, Option } from 'payload'
 
 type InviteFieldBase = {
   /**
@@ -18,7 +18,7 @@ type InviteFieldBase = {
 }
 
 export type InviteField = (
-  | { options?: readonly string[]; type: 'select' }
+  | { options?: readonly Option[]; type: 'select' }
   | { options?: readonly string[]; type?: 'text' }
   | { relationTo: CollectionSlug; type: 'relationship' }
 ) &

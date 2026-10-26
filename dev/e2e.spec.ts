@@ -41,6 +41,11 @@ test('native invite relationships show titles, search, clear, and submit typed I
   await drawer.locator('#field-email').fill('native-relationship@example.com')
   await drawer.locator('#field-name').fill('Native User')
 
+  const role = drawer.locator('#field-role')
+  await role.getByRole('combobox').click()
+  await page.getByRole('option', { name: 'Administrator', exact: true }).click()
+  await expect(role).toContainText('Administrator')
+
   const practitioner = drawer.locator('#field-practitioner')
   await practitioner.getByRole('combobox').fill('Ada')
   await page.getByRole('option', { name: 'Dr Ada', exact: true }).click()
@@ -60,7 +65,7 @@ test('native invite relationships show titles, search, clear, and submit typed I
   await drawer.getByRole('button', { name: 'Send Invitation' }).click()
   const request = await requestPromise
   expect(request.postDataJSON()).toMatchObject({
-    data: { numericPractitioner: 42, practitioner: 'practitioner-ada' },
+    data: { numericPractitioner: 42, practitioner: 'practitioner-ada', role: 'admin' },
   })
   await expect(drawer).toContainText('Invitation sent to')
 
