@@ -1,9 +1,18 @@
 'use client'
 
-import { Banner, Button, Drawer, SelectInput, TextInput, useConfig, useModal } from '@payloadcms/ui'
+import {
+  Banner,
+  Button,
+  Drawer,
+  RelationshipInput,
+  SelectInput,
+  TextInput,
+  useConfig,
+  useModal,
+} from '@payloadcms/ui'
 import React, { useCallback, useMemo, useState } from 'react'
 
-import type { InviteField } from '../types.js'
+import type { InviteData, InviteField } from '../types.js'
 
 const DRAWER_SLUG = 'invite-user-drawer'
 const baseClass = 'invite-user'
@@ -31,24 +40,39 @@ export const InviteUserButton: React.FC = () => {
     authCollections[0]?.slug ?? 'users',
   )
   // Extra field values keyed by field name
-  const [fieldValues, setFieldValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(inviteFields.map((f) => [f.name, ''])),
-  )
+  const emptyFieldValues = useMemo<InviteData>(() => {
+    const values: InviteData = {}
+    for (const field of inviteFields) {
+      if (field.type !== 'relationship') {
+        values[field.name] = ''
+      }
+    }
+    return values
+  }, [inviteFields])
+  const [fieldValues, setFieldValues] = useState<InviteData>(emptyFieldValues)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<null | string>(null)
   const [successEmail, setSuccessEmail] = useState<null | string>(null)
 
-  const setFieldValue = useCallback((name: string, value: string) => {
-    setFieldValues((prev) => ({ ...prev, [name]: value }))
+  const setFieldValue = useCallback((name: string, value: number | string | undefined) => {
+    setFieldValues((prev) => {
+      const next = { ...prev }
+      if (value === undefined) {
+        delete next[name]
+      } else {
+        next[name] = value
+      }
+      return next
+    })
   }, [])
 
   const resetForm = useCallback(() => {
     setEmail('')
     setError(null)
     setSuccessEmail(null)
-    setFieldValues(Object.fromEntries(inviteFields.map((f) => [f.name, ''])))
-  }, [inviteFields])
+    setFieldValues({ ...emptyFieldValues })
+  }, [emptyFieldValues])
 
   const handleOpen = useCallback(() => {
     openModal(DRAWER_SLUG)
@@ -62,6 +86,15 @@ export const InviteUserButton: React.FC = () => {
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
+      const missingField = inviteFields.find(
+        (field) =>
+          field.required &&
+          (fieldValues[field.name] === undefined || fieldValues[field.name] === ''),
+      )
+      if (missingField) {
+        setError(`${missingField.label ?? missingField.name} is required`)
+        return
+      }
       setIsSubmitting(true)
       setError(null)
 
@@ -91,7 +124,7 @@ export const InviteUserButton: React.FC = () => {
         setIsSubmitting(false)
       }
     },
-    [email, fieldValues, selectedCollection],
+    [email, fieldValues, inviteFields, selectedCollection],
   )
 
   const handleInviteAnother = useCallback(() => {
@@ -181,6 +214,31 @@ export const InviteUserButton: React.FC = () => {
                   field.label ?? field.name.charAt(0).toUpperCase() + field.name.slice(1)
                 const value = fieldValues[field.name] ?? ''
 
+                if (field.type === 'relationship') {
+                  return (
+                    <RelationshipInput
+                      allowCreate={false}
+                      allowEdit={false}
+                      hasMany={false}
+                      key={field.name}
+                      label={label}
+                      onChange={(selection) => setFieldValue(field.name, selection?.value)}
+                      path={field.name}
+                      readOnly={isSubmitting}
+                      relationTo={[field.relationTo]}
+                      required={field.required}
+                      value={
+                        fieldValues[field.name] === undefined
+                          ? null
+                          : {
+                              relationTo: field.relationTo,
+                              value: fieldValues[field.name],
+                            }
+                      }
+                    />
+                  )
+                }
+
                 if (field.type === 'select' && field.options?.length) {
                   return (
                     <SelectInput
@@ -199,7 +257,7 @@ export const InviteUserButton: React.FC = () => {
                       path={field.name}
                       readOnly={isSubmitting}
                       required={field.required}
-                      value={value}
+                      value={String(value)}
                     />
                   )
                 }
@@ -214,7 +272,7 @@ export const InviteUserButton: React.FC = () => {
                     path={field.name}
                     readOnly={isSubmitting}
                     required={field.required}
-                    value={value}
+                    value={String(value)}
                   />
                 )
               })}

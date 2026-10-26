@@ -47,6 +47,31 @@ const buildConfigWithMemoryDB = async () => {
             type: 'text',
             label: 'Full Name',
           },
+          { name: 'practitioner', type: 'relationship', relationTo: 'practitioners' },
+          {
+            name: 'numericPractitioner',
+            type: 'relationship',
+            relationTo: 'numeric-practitioners',
+          },
+        ],
+      },
+      {
+        slug: 'practitioners',
+        access: { read: ({ req }) => (req.user ? { visible: { equals: true } } : false) },
+        admin: { useAsTitle: 'name' },
+        fields: [
+          { name: 'name', type: 'text', required: true },
+          { name: 'visible', type: 'checkbox', defaultValue: true },
+        ],
+      },
+      {
+        slug: 'numeric-practitioners',
+        access: { read: ({ req }) => (req.user ? { visible: { equals: true } } : false) },
+        admin: { useAsTitle: 'name' },
+        fields: [
+          { name: 'id', type: 'number', required: true },
+          { name: 'name', type: 'text', required: true },
+          { name: 'visible', type: 'checkbox', defaultValue: true },
         ],
       },
       {
@@ -78,6 +103,12 @@ const buildConfigWithMemoryDB = async () => {
             name: 'name',
             label: 'Full Name',
             required: true,
+          },
+          { name: 'practitioner', type: 'relationship', relationTo: 'practitioners' },
+          {
+            name: 'numericPractitioner',
+            type: 'relationship',
+            relationTo: 'numeric-practitioners',
           },
         ],
         userCollections: ['users'],

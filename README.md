@@ -151,19 +151,72 @@ payloadInvite({
 
 The admin will see these inputs in the **Invite User** drawer, below the email field. On account creation the values are spread onto the user document, so `name: 'Jane'` will set the `name` field on the `users` collection document.
 
+### Readonly select options
+
+Select options accept both mutable arrays and readonly tuples, including arrays declared with `as const`:
+
+```ts
+const roles = ['admin', 'editor', 'practitioner'] as const
+
+payloadInvite({
+  fields: [{ name: 'role', type: 'select', options: roles }],
+})
+```
+
+### Relationship fields
+
+Use a relationship field to select one document from one collection:
+
+```ts
+payloadInvite({
+  userCollections: ['users'],
+  fields: [
+    {
+      name: 'practitioner',
+      label: 'Practitioner',
+      type: 'relationship',
+      relationTo: 'practitioners',
+    },
+  ],
+})
+```
+
+Define the corresponding field on your user collection as a real Payload relationship:
+
+```ts
+{
+  slug: 'users',
+  auth: true,
+  fields: [
+    { name: 'practitioner', type: 'relationship', relationTo: 'practitioners' },
+  ],
+}
+```
+
+The drawer uses Payload's native relationship input, with searchable, paginated results and titles from the related collection's `admin.useAsTitle`. It submits document IDs, preserving numbers and strings. An optional selection can be cleared; empty values (`null`, `''`, or an omitted value) are left unset on the invite and user.
+
+Lookup HTTP errors use Payload's native error display. Network-level fetch failures follow the installed `@payloadcms/ui` version's behavior; some versions do not surface these failures in the input.
+
+Lookups respect the logged-in inviter's Payload read access. Invite creation also validates each relationship ID and checks that the inviter can read the selected document. Creation retains the existing requirement for an authenticated inviter and a target in `userCollections`. On acceptance, the plugin rechecks document existence and lets Payload validate the user document; an invalid or deleted relationship returns an error and leaves the invite pending.
+
+Only single-collection, single-document relationships are supported. Polymorphic (`relationTo: [...]`) and `hasMany` relationships are not supported. The plugin does not add or change fields on your user collection.
+
 ### Field options
 
-| Option     | Type                 | Default    | Description                                                     |
-| ---------- | -------------------- | ---------- | --------------------------------------------------------------- |
-| `name`     | `string`             | —          | **Required.** Must match the field name on the user collection. |
-| `label`    | `string`             | Field name | Label shown in the invite form.                                 |
-| `type`     | `'text' \| 'select'` | `'text'`   | Input type rendered in the form.                                |
-| `options`  | `string[]`           | —          | Required when `type` is `'select'`.                             |
-| `required` | `boolean`            | `false`    | Prevents the form from submitting if left empty.                |
+| Option       | Type                                   | Default    | Description                                                     |
+| ------------ | -------------------------------------- | ---------- | --------------------------------------------------------------- |
+| `name`       | `string`                               | —          | **Required.** Must match the field name on the user collection. |
+| `label`      | `string`                               | Field name | Label shown in the invite form.                                 |
+| `type`       | `'text' \| 'select' \| 'relationship'` | `'text'`   | Input type rendered in the form.                                |
+| `options`    | `readonly string[]`                    | —          | Options for `type: 'select'`; mutable arrays are also accepted. |
+| `relationTo` | `CollectionSlug`                       | —          | **Required** for `type: 'relationship'`. One collection slug.   |
+| `required`   | `boolean`                              | `false`    | Prevents the form from submitting if left empty.                |
 
 ### Using field values in email templates
 
 Every field name is automatically available as a placeholder alongside `{url}` and `{email}`:
+
+Relationship placeholders render the selected document ID as text, rather than its title. Numeric IDs remain numbers in stored invite data and in the created user document.
 
 ```ts
 payloadInvite({

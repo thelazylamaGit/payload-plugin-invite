@@ -160,7 +160,7 @@ describe('CRIT: invite lifecycle', () => {
       collection: 'users',
       data: { email, password: 'super-secret-1' },
     })
-    expect(loginResult.user.email).toBe(email)
+    expect(loginResult.user?.email).toBe(email)
   })
 })
 
@@ -358,5 +358,163 @@ describe('acceptInvite endpoint', () => {
 
     const response = await runAcceptInvite({ password: 'super-secret-1', token: rawToken })
     expect(response.status).toBe(422)
+  })
+})
+
+describe('relationship invite fields', () => {
+  const relationshipOptions: PayloadInviteConfig = {
+    email: { subject: 'Practitioners: {practitioner}, {numericPractitioner}' },
+    fields: [
+      { name: 'practitioner', type: 'relationship', relationTo: 'practitioners' },
+      { name: 'numericPractitioner', type: 'relationship', relationTo: 'numeric-practitioners' },
+    ],
+  }
+
+  test('preserves string and numeric IDs through JSON storage and user creation', async () => {
+    const practitioner = await payload.create({
+      collection: 'practitioners',
+      data: { name: 'Ada' },
+    })
+    const numericPractitioner = await payload.create({
+      collection: 'numeric-practitioners',
+      data: { id: 42, name: 'Grace' },
+    })
+    expect(typeof practitioner.id).toBe('string')
+    expect(typeof numericPractitioner.id).toBe('number')
+
+    const email = uniqueEmail()
+    const data = { numericPractitioner: numericPractitioner.id, practitioner: practitioner.id }
+    const response = await runCreateInvite(
+      { collection: 'users', data, email },
+      adminToken,
+      relationshipOptions,
+    )
+    expect(response.status).toBe(200)
+    const invite = (
+      await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } })
+    ).docs[0]
+    expect(invite.data).toEqual(data)
+    expect(sentEmails.at(-1)?.subject).toBe(`Practitioners: ${practitioner.id}, 42`)
+
+    const accepted = await runAcceptInvite(
+      { password: 'super-secret-1', token: extractTokenFromEmail() },
+      relationshipOptions,
+    )
+    expect(accepted.status).toBe(200)
+    const user = (
+      await payload.find({ collection: 'users', depth: 0, where: { email: { equals: email } } })
+    ).docs[0]
+    expect(user.practitioner).toBe(practitioner.id)
+    expect(user.numericPractitioner).toBe(42)
+  })
+
+  test.each([undefined, null, ''])('omits optional empty relationships (%s)', async (value) => {
+    const email = uniqueEmail()
+    const response = await runCreateInvite(
+      { collection: 'users', data: { practitioner: value }, email },
+      adminToken,
+      relationshipOptions,
+    )
+    expect(response.status).toBe(200)
+    const invite = (
+      await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } })
+    ).docs[0]
+    expect(invite.data).toEqual({})
+    const accepted = await runAcceptInvite(
+      { password: 'super-secret-1', token: extractTokenFromEmail() },
+      relationshipOptions,
+    )
+    expect(accepted.status).toBe(200)
+    const user = (
+      await payload.find({ collection: 'users', depth: 0, where: { email: { equals: email } } })
+    ).docs[0]
+    expect(user.practitioner == null).toBe(true)
+  })
+
+  test.each([
+    [],
+    ['id'],
+    {},
+    { relationTo: 'practitioners', value: 'id' },
+    true,
+    '   ',
+    'invalid-id',
+    '000000000000000000000000',
+  ])('rejects invalid relationship selections (%j)', async (value) => {
+    const email = uniqueEmail()
+    const response = await runCreateInvite(
+      { collection: 'users', data: { practitioner: value }, email },
+      adminToken,
+      relationshipOptions,
+    )
+    expect(response.status).toBe(400)
+    expect((await response.json()).error).toContain('practitioner')
+    expect(sentEmails).toHaveLength(0)
+    expect(
+      (await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } }))
+        .docs,
+    ).toHaveLength(0)
+  })
+
+  test('rejects a document hidden from the authenticated inviter by read access', async () => {
+    const hidden = await payload.create({
+      collection: 'practitioners',
+      data: { name: 'Hidden', visible: false },
+    })
+    const response = await runCreateInvite(
+      { collection: 'users', data: { practitioner: hidden.id }, email: uniqueEmail() },
+      adminToken,
+      relationshipOptions,
+    )
+    expect(response.status).toBe(400)
+    expect(sentEmails).toHaveLength(0)
+  })
+
+  test('rejects an empty required relationship', async () => {
+    const response = await runCreateInvite(
+      { collection: 'users', data: { practitioner: '' }, email: uniqueEmail() },
+      adminToken,
+      {
+        fields: [
+          {
+            name: 'practitioner',
+            type: 'relationship',
+            relationTo: 'practitioners',
+            required: true,
+          },
+        ],
+      },
+    )
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'practitioner is required' })
+  })
+
+  test('returns a useful validation error and leaves the invite pending if a related document is deleted', async () => {
+    const practitioner = await payload.create({
+      collection: 'practitioners',
+      data: { name: 'Temporary' },
+    })
+    const email = uniqueEmail()
+    expect(
+      (
+        await runCreateInvite(
+          { collection: 'users', data: { practitioner: practitioner.id }, email },
+          adminToken,
+          relationshipOptions,
+        )
+      ).status,
+    ).toBe(200)
+    const token = extractTokenFromEmail()
+    await payload.delete({ id: practitioner.id, collection: 'practitioners' })
+    const response = await runAcceptInvite(
+      { password: 'super-secret-1', token },
+      relationshipOptions,
+    )
+    expect(response.status).toBe(422)
+    expect((await response.json()).error).toContain('practitioner')
+    const invite = (
+      await payload.find({ collection: 'plugin-invites', where: { email: { equals: email } } })
+    ).docs[0]
+    expect(invite.status).toBe('pending')
   })
 })

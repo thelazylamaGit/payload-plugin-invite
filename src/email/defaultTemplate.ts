@@ -94,8 +94,8 @@ This link will expire in 48 hours. If you did not expect this invitation, you ca
  * Replaces all occurrences of {key} placeholders in a template string.
  * Works with any key/value pairs — {url}, {email}, {name}, or any custom field.
  */
-export const renderTemplate = (template: string, values: Record<string, string>): string =>
+export const renderTemplate = (template: string, values: Record<string, number | string>): string =>
   Object.entries(values).reduce(
-    (result, [key, value]) => result.replaceAll(`{${key}}`, value),
+    (result, [key, value]) => result.replaceAll(`{${key}}`, () => String(value)),
     template,
   )

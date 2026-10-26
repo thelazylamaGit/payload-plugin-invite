@@ -2,7 +2,7 @@ import type { PayloadHandler } from 'payload'
 
 import crypto from 'node:crypto'
 
-import type { PayloadInviteConfig } from '../types.js'
+import type { InviteData, PayloadInviteConfig } from '../types.js'
 
 import {
   defaultEmailHtml,
@@ -10,6 +10,9 @@ import {
   defaultEmailText,
   renderTemplate,
 } from '../email/defaultTemplate.js'
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
 
 export const createInviteEndpoint =
   (pluginOptions: PayloadInviteConfig): PayloadHandler =>
@@ -22,7 +25,7 @@ export const createInviteEndpoint =
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    let body: { collection?: string; data?: Record<string, string>; email?: string }
+    let body: unknown
 
     try {
       body = (await req.json?.()) ?? {}
@@ -30,7 +33,11 @@ export const createInviteEndpoint =
       body = {}
     }
 
-    const { collection, data: extraData = {}, email } = body
+    if (!isRecord(body)) {
+      return Response.json({ error: 'Invalid request body' }, { status: 400 })
+    }
+
+    const { collection, data = {}, email } = body
 
     if (!email || typeof email !== 'string') {
       return Response.json({ error: 'email is required' }, { status: 400 })
@@ -42,8 +49,74 @@ export const createInviteEndpoint =
 
     const userCollections = pluginOptions.userCollections ?? ['users']
 
-    if (!userCollections.includes(collection as never)) {
+    if (!userCollections.some((slug) => slug === collection)) {
       return Response.json({ error: 'Invalid collection' }, { status: 400 })
+    }
+
+    if (!isRecord(data)) {
+      return Response.json({ error: 'data must be an object' }, { status: 400 })
+    }
+
+    const values: Record<string, unknown> = { ...data }
+    for (const field of pluginOptions.fields ?? []) {
+      if (field.type !== 'relationship') {
+        continue
+      }
+
+      const value = values[field.name]
+      if (value === undefined || value === null || value === '') {
+        if (field.required) {
+          return Response.json(
+            { error: `${field.label ?? field.name} is required` },
+            { status: 400 },
+          )
+        }
+        delete values[field.name]
+        continue
+      }
+
+      if (
+        !(
+          (typeof value === 'string' && value.trim().length > 0) ||
+          (typeof value === 'number' && Number.isFinite(value))
+        )
+      ) {
+        return Response.json(
+          { error: `Invalid relationship value for ${field.name}` },
+          { status: 400 },
+        )
+      }
+
+      // Local API calls bypass access by default. This lookup acts as the inviter.
+      try {
+        const document = await req.payload.findByID({
+          id: value,
+          collection: field.relationTo,
+          depth: 0,
+          disableErrors: true,
+          overrideAccess: false,
+          req,
+        })
+        if (!document) {
+          return Response.json(
+            { error: `Invalid or inaccessible selection for ${field.label ?? field.name}` },
+            { status: 400 },
+          )
+        }
+      } catch {
+        return Response.json(
+          { error: `Unable to validate selection for ${field.label ?? field.name}` },
+          { status: 400 },
+        )
+      }
+    }
+
+    const extraData: InviteData = {}
+    for (const [name, value] of Object.entries(values)) {
+      if (typeof value !== 'string' && !(typeof value === 'number' && Number.isFinite(value))) {
+        return Response.json({ error: `Invalid value for ${name}` }, { status: 400 })
+      }
+      extraData[name] = value
     }
 
     const inviteExpiryMs = pluginOptions.inviteExpiryMs ?? 48 * 60 * 60 * 1000
@@ -79,7 +152,7 @@ export const createInviteEndpoint =
 
     // Merge default templates with any user overrides.
     // Extra field values are included so they can be used as placeholders, e.g. {name}.
-    const templateValues: Record<string, string> = { email, url: inviteURL, ...extraData }
+    const templateValues = { email, url: inviteURL, ...extraData }
 
     const subject = renderTemplate(
       pluginOptions.email?.subject ?? defaultEmailSubject,

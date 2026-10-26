@@ -68,6 +68,8 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
+    practitioners: Practitioner;
+    'numeric-practitioners': NumericPractitioner;
     posts: Post;
     media: Media;
     'plugin-invites': PluginInvite;
@@ -79,6 +81,8 @@ export interface Config {
   collectionsJoins: {};
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
+    practitioners: PractitionersSelect<false> | PractitionersSelect<true>;
+    'numeric-practitioners': NumericPractitionersSelect<false> | NumericPractitionersSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     'plugin-invites': PluginInvitesSelect<false> | PluginInvitesSelect<true>;
@@ -128,6 +132,8 @@ export interface UserAuthOperations {
 export interface User {
   id: string;
   name?: string | null;
+  practitioner?: (string | null) | Practitioner;
+  numericPractitioner?: (number | null) | NumericPractitioner;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -146,6 +152,28 @@ export interface User {
     | null;
   password?: string | null;
   collection: 'users';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "practitioners".
+ */
+export interface Practitioner {
+  id: string;
+  name: string;
+  visible?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "numeric-practitioners".
+ */
+export interface NumericPractitioner {
+  id: number;
+  name: string;
+  visible?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -230,6 +258,14 @@ export interface PayloadLockedDocument {
         value: string | User;
       } | null)
     | ({
+        relationTo: 'practitioners';
+        value: string | Practitioner;
+      } | null)
+    | ({
+        relationTo: 'numeric-practitioners';
+        value: number | NumericPractitioner;
+      } | null)
+    | ({
         relationTo: 'posts';
         value: string | Post;
       } | null)
@@ -289,6 +325,8 @@ export interface PayloadMigration {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  practitioner?: T;
+  numericPractitioner?: T;
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -305,6 +343,27 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "practitioners_select".
+ */
+export interface PractitionersSelect<T extends boolean = true> {
+  name?: T;
+  visible?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "numeric-practitioners_select".
+ */
+export interface NumericPractitionersSelect<T extends boolean = true> {
+  id?: T;
+  name?: T;
+  visible?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

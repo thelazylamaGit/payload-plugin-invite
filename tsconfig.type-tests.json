@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "emitDeclarationOnly": false,
+    "composite": false,
+    "incremental": false
+  },
+  "include": ["dev/config.type-test.ts", "dev/payload-types.ts"]
+}

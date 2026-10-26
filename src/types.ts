@@ -1,8 +1,6 @@
 import type { CollectionSlug } from 'payload'
 
-export type InviteFieldType = 'select' | 'text'
-
-export type InviteField = {
+type InviteFieldBase = {
   /**
    * Human-readable label shown in the invite form. Defaults to the field name.
    */
@@ -13,20 +11,23 @@ export type InviteField = {
    */
   name: string
   /**
-   * Options for select fields.
-   */
-  options?: string[]
-  /**
    * Whether the field must be filled in before sending the invite.
    * @default false
    */
   required?: boolean
-  /**
-   * The type of input to render in the invite form.
-   * @default 'text'
-   */
-  type?: InviteFieldType
 }
+
+export type InviteField = (
+  | { options?: readonly string[]; type: 'select' }
+  | { options?: readonly string[]; type?: 'text' }
+  | { relationTo: CollectionSlug; type: 'relationship' }
+) &
+  InviteFieldBase
+
+export type InviteFieldType = NonNullable<InviteField['type']>
+
+/** Scalar values stored in invite.data; an unset relationship is omitted. */
+export type InviteData = Record<string, number | string>
 
 export type InviteEmailOptions = {
   /**

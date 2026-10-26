@@ -1,6 +1,7 @@
 import type { PayloadHandler } from 'payload'
 
 import crypto from 'node:crypto'
+import { ValidationError } from 'payload'
 
 import type { PayloadInviteConfig } from '../types.js'
 
@@ -72,12 +73,21 @@ export const acceptInviteEndpoint =
     const userCollections = pluginOptions.userCollections ?? ['users']
     const collectionSlug = invite.collection as string
 
-    if (!userCollections.includes(collectionSlug as never)) {
+    const targetCollection = userCollections.find((slug) => slug === collectionSlug)
+    if (!targetCollection) {
       return Response.json({ error: 'Invalid collection' }, { status: 400 })
     }
 
     // Merge any extra fields stored on the invite into the user document
     const extraData = (invite.data as null | Record<string, unknown>) ?? {}
+    for (const field of pluginOptions.fields ?? []) {
+      if (
+        field.type === 'relationship' &&
+        (extraData[field.name] === '' || extraData[field.name] === null)
+      ) {
+        delete extraData[field.name]
+      }
+    }
 
     if (pluginOptions.debug) {
       req.payload.logger.info(
@@ -87,8 +97,42 @@ export const acceptInviteEndpoint =
 
     // Create the user account
     try {
+      // Payload's default relationship validation checks ID shape, but not existence.
+      // The validated token authorizes this check; inviter read access was checked at creation.
+      for (const field of pluginOptions.fields ?? []) {
+        if (field.type !== 'relationship') {
+          continue
+        }
+        const value = extraData[field.name]
+        if (value === undefined) {
+          continue
+        }
+        if (typeof value !== 'string' && typeof value !== 'number') {
+          return Response.json(
+            { error: `Invalid relationship value for ${field.name}` },
+            { status: 422 },
+          )
+        }
+        const document = await req.payload.findByID({
+          id: value,
+          collection: field.relationTo,
+          depth: 0,
+          disableErrors: true,
+          overrideAccess: true,
+          req,
+        })
+        if (!document) {
+          return Response.json(
+            {
+              error: `${field.label ?? field.name}: the selected document no longer exists. Please request a new invitation.`,
+            },
+            { status: 422 },
+          )
+        }
+      }
+
       await req.payload.create({
-        collection: collectionSlug,
+        collection: targetCollection,
         data: {
           ...extraData,
           email: invite.email as string,
@@ -96,7 +140,12 @@ export const acceptInviteEndpoint =
         },
       })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to create user'
+      const message =
+        err instanceof ValidationError
+          ? err.data.errors.map((error) => `${error.path}: ${error.message}`).join('; ')
+          : err instanceof Error
+            ? err.message
+            : 'Failed to create user'
       if (pluginOptions.debug) {
         req.payload.logger.info(
           `[payload-invite] accept: failed to create user ${invite.email}: ${message}`,
